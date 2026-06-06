@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.env
+
+# Experiment Logs & Output Artifacts
+*.log
+explain_view.txt
+explain_table.txt
+
+# Generated Configs
+config.json
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+
+# Local Database Data (if you decide to mount volumes later)
+pgdata/
+zookeeper-data/
+kafka-data/
