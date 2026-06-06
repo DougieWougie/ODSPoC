@@ -1,0 +1,17 @@
+{
+  "name": "core-banking-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "core-banking-db",
+    "database.port": "5432",
+    "database.user": "admin",
+    "database.password": "password",
+    "database.dbname": "core_banking",
+    "topic.prefix": "src",
+    "schema.include.list": "client,crm,payments,lending",
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium",
+    "decimal.handling.mode": "string"
+  }
+}
