@@ -60,7 +60,7 @@ services:
   # 5. Transformation Service (Mapping Source -> BCDM)
   # This acts as an intermediary stream processor. We will implement this as a Python/Faust app later.
   transformer:
-    build: ./transformer
+    build: ../src/transformer
     depends_on:
       - kafka
       - ods-db

@@ -15,7 +15,7 @@ def measure():
         core_records = core_cur.fetchall()
         
         # Get all transformed records from the ODS (now querying the view)
-        ods_cur.execute("SELECT source_record_id::int, integration_timestamp FROM bcdm.virtual_event WHERE source_system='CORE_BANKING_PAYMENTS'")
+        ods_cur.execute("SELECT source_record_id::int, integration_timestamp FROM bcdm.event WHERE source_system='CORE_BANKING_PAYMENTS'")
         ods_records = ods_cur.fetchall()
         
         # Create a dictionary for O1 lookup

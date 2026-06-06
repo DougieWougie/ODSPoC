@@ -10,12 +10,13 @@ This repository contains a Proof of Concept (PoC) for a near real-time, event-dr
 ## 1. Initial Setup
 Start the infrastructure (Postgres, Zookeeper, Kafka, Debezium, and 1 Transformer):
 ```bash
+cd infrastructure
 docker compose up -d
 ```
 
 Once running, register the Debezium Postgres Source Connector:
 ```bash
-jq '.config' register-postgres-source.json > config.json
+jq '.config' connectors/register-postgres-source.json > config.json
 curl -X POST -H "Content-Type: application/json" -d @config.json http://localhost:8083/connectors
 ```
 
@@ -24,8 +25,6 @@ Set up your local Python environment to run the measurement tools:
 python3 -m venv venv
 source venv/bin/activate
 pip install psycopg2-binary confluent-kafka
-```
-
 ```
 
 ---
@@ -45,11 +44,11 @@ We have provided `generator.py` for this purpose. This script utilizes Python's 
 1. Ensure only 1 transformer is running: `docker compose up --scale transformer=1 -d`
 2. Run the latency monitor:
    ```bash
-   ./venv/bin/python measure_latency.py
+   ./venv/bin/python src/tools/measure_latency.py
    ```
 3. In a separate terminal, flood the system with 2,000 transactions:
    ```bash
-   ./venv/bin/python generator.py
+   ./venv/bin/python src/tools/generator.py
    ```
 4. **Observe:** The latency monitor will show the queue backing up, with maximum latency reaching ~2.5 seconds.
 
@@ -77,11 +76,11 @@ We have provided `generator.py` for this purpose. This script utilizes Python's 
 1. Stop the stream processors: `docker compose up --scale transformer=0 -d`
 2. Create the raw landing tables and BCDM Virtual Views in the ODS:
    ```bash
-   docker compose exec -T ods-db psql -U admin -d ods < setup_approach3.sql
+   docker compose exec -T ods-db psql -U admin -d ods < ../init-scripts/setup_approach3.sql
    ```
 3. Start the raw sink connector (which performs no transformations):
    ```bash
-   ./venv/bin/python raw_sink.py &
+   ./venv/bin/python src/raw_sink/raw_sink.py &
    ```
 4. Run the generator to flood the system. Ingestion latency will remain at ~2.5s because the database insertion bottleneck remains.
 5. **Measure Read Latency:** Compare the execution time of reading from the physical table versus the virtual view:
