@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event-Driven ODS Experiments</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header glassmorphism">
+            <h1>ODS Experiment Dashboard</h1>
+            <div class="theme-toggle">
+                <button id="theme-btn" class="btn-icon">
+                    <!-- Sun/Moon icons handled in CSS/JS -->
+                    <span id="theme-icon">🌙</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard">
+            <section class="controls glassmorphism">
+                <h2>1. Select Experiment</h2>
+                <div class="experiment-cards">
+                    <div class="card" data-exp="A">
+                        <h3>Experiment A</h3>
+                        <p>Single Node Bottleneck (1 Transformer)</p>
+                    </div>
+                    <div class="card" data-exp="B">
+                        <h3>Experiment B</h3>
+                        <p>Distributed Stream Processing (10 Transformers)</p>
+                    </div>
+                    <div class="card" data-exp="C">
+                        <h3>Experiment C</h3>
+                        <p>Data Virtualization (SQL Views)</p>
+                    </div>
+                </div>
+
+                <h2>2. Generate Data</h2>
+                <button id="generate-btn" class="btn-primary" disabled>Generate Burst (2000 txns)</button>
+                <div id="status-msg" class="status-msg"></div>
+            </section>
+
+            <section class="visualizations glassmorphism">
+                <h2>Real-Time Metrics</h2>
+                <div class="metrics-cards">
+                    <div class="metric">
+                        <h4>Avg Latency</h4>
+                        <div id="avg-latency" class="value">0.00s</div>
+                    </div>
+                    <div class="metric">
+                        <h4>Max Latency</h4>
+                        <div id="max-latency" class="value">0.00s</div>
+                    </div>
+                    <div class="metric">
+                        <h4>Pending/In-flight</h4>
+                        <div id="pending-txns" class="value">0</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

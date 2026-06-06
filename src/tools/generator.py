@@ -8,7 +8,7 @@ NUM_RECORDS = 2000
 NUM_THREADS = 10
 
 def generate_data(thread_id, records_per_thread):
-    conn = psycopg2.connect(host="localhost", port="5432", user="admin", password="password", dbname="core_banking")
+    conn = psycopg2.connect(host="127.0.0.1", port="5432", user="admin", password="password", dbname="core_banking")
     conn.autocommit = True
     cursor = conn.cursor()
     for _ in range(records_per_thread):

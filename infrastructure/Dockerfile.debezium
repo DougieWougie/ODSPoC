@@ -1,0 +1,12 @@
+FROM confluentinc/cp-kafka-connect:7.4.0
+
+USER root
+
+# The confluentinc/cp-kafka-connect image already includes the Avro converter
+# and all necessary Schema Registry dependencies.
+# We just need to install the Debezium Postgres source connector plugin.
+
+RUN confluent-hub install --no-prompt debezium/debezium-connector-postgresql:latest
+
+# Ensure proper permissions if needed, though appuser is default for CP images
+USER appuser
