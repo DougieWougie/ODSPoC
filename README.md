@@ -26,9 +26,20 @@ source venv/bin/activate
 pip install psycopg2-binary confluent-kafka
 ```
 
+```
+
 ---
 
-## 2. Experiment A: Single Node Bottleneck
+## 2. Generating Synthetic Data
+To properly evaluate the architecture, we need a mechanism to simulate high volumes of banking events (e.g., millions of payment transactions). 
+
+We have provided `generator.py` for this purpose. This script utilizes Python's `threading` module to create 10 concurrent connections to the `core-banking-db`, injecting thousands of random `payments.transactions` instantly.
+
+*Note: You do not need to run this script manually before starting the experiments. Instead, you will execute this script **during** the experiments to trigger a sudden "burst" of data, allowing you to measure exactly how the architecture handles the sudden load spike.*
+
+---
+
+## 3. Experiment A: Single Node Bottleneck
 **Goal:** Demonstrate how a single-threaded stream processor handles a burst of transactions.
 
 1. Ensure only 1 transformer is running: `docker compose up --scale transformer=1 -d`
@@ -44,7 +55,7 @@ pip install psycopg2-binary confluent-kafka
 
 ---
 
-## 3. Experiment B: Distributed Stream Processing (Approach 1)
+## 4. Experiment B: Distributed Stream Processing (Approach 1)
 **Goal:** Demonstrate horizontal scaling by partitioning the Kafka topic and adding stream processors.
 
 1. Partition the Kafka topic to allow parallel consumption:
@@ -60,7 +71,7 @@ pip install psycopg2-binary confluent-kafka
 
 ---
 
-## 4. Experiment C: Data Virtualization (Approach 3)
+## 5. Experiment C: Data Virtualization (Approach 3)
 **Goal:** Demonstrate the impact of bypassing stream processing and using SQL Views for on-the-fly transformation.
 
 1. Stop the stream processors: `docker compose up --scale transformer=0 -d`
