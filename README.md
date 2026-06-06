@@ -7,6 +7,32 @@ This repository contains a Proof of Concept (PoC) for a near real-time, event-dr
 - Python 3.10+
 - `psycopg2-binary` and `confluent-kafka` Python packages
 
+---
+
+## Running the Real-Time Dashboard
+
+The dashboard provides a live visual of the full pipeline — Source DB → Debezium → Kafka → Transformer → ODS — including animated data flow, latency trends, and a transaction injection button suitable for executive presentations.
+
+**Requires the infrastructure to be running first** (see Initial Setup below).
+
+```bash
+# Install dashboard dependencies (first time only)
+source venv/bin/activate
+pip install fastapi uvicorn requests
+
+# Start the dashboard
+cd src/dashboard
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Open **http://localhost:8000** in a browser. The dashboard will:
+- Poll all five pipeline stages every 2 seconds via Server-Sent Events
+- Animate particles along the pipeline proportional to live throughput
+- Display real-time KPIs: in-flight records, end-to-end latency, throughput, and total ODS records
+- Allow transaction injection (25 / 50 / 100 / 500) directly from the UI
+
+To stop the dashboard: `Ctrl+C` in the terminal running `uvicorn`.
+
 ## 1. Initial Setup
 Start the infrastructure (Postgres, Zookeeper, Kafka, Debezium, and 1 Transformer):
 ```bash
