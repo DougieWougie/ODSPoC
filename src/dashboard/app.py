@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +20,26 @@ DEBEZIUM = "http://localhost:8083"
 CURRENCIES = ["GBP", "USD", "EUR", "JPY", "CHF", "AUD", "CAD"]
 
 _latency_history: list[float] = []
+
+EXPERIMENT_FILE = BASE.parent.parent / ".experiment"
+
+EXPERIMENT_META = {
+    "A": {
+        "name": "Single Node Bottleneck",
+        "detail": "1 transformer",
+        "requested": 1,
+    },
+    "B": {
+        "name": "Distributed Stream Processing",
+        "detail": "10 transformers · 10 Kafka partitions",
+        "requested": 10,
+    },
+    "C": {
+        "name": "Data Virtualization",
+        "detail": "SQL views, no stream processors",
+        "requested": 0,
+    },
+}
 
 
 def source_metrics() -> dict:
@@ -135,6 +156,37 @@ def latency_metrics() -> dict:
         }
     except Exception as e:
         return {"avg": 0, "min": 0, "max": 0, "in_flight": 0, "err": str(e)}
+
+
+def experiment_metrics() -> dict:
+    try:
+        if not EXPERIMENT_FILE.exists():
+            return {"experiment": None}
+        exp = EXPERIMENT_FILE.read_text().strip().upper()
+        meta = EXPERIMENT_META.get(exp)
+        if not meta:
+            return {"experiment": None}
+        result = subprocess.run(
+            [
+                "docker", "ps",
+                "--filter", "label=com.docker.compose.service=transformer",
+                "--filter", "status=running",
+                "--format", "{{.Names}}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        running = len([l for l in result.stdout.strip().splitlines() if l])
+        return {
+            "experiment": exp,
+            "name": meta["name"],
+            "detail": meta["detail"],
+            "running": running,
+            "requested": meta["requested"],
+        }
+    except Exception as e:
+        return {"experiment": None, "err": str(e)}
 
 
 async def event_stream():
