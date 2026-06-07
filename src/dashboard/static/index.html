@@ -1123,6 +1123,121 @@ function renderData(d) {
   updateChart(history);
 }
 
+/* ── ODS Records Panel ───────────────────────────────────── */
+let _odsTable = 'event';
+let _odsPollId = null;
+let _odsPanelOpen = false;
+
+const ODS_COLUMNS = {
+  event:       ['event_id', 'event_type', 'event_amount', 'currency', 'event_timestamp', 'latency_s'],
+  party:       ['party_id', 'party_type', 'first_name', 'last_name', 'source_system', 'integration_timestamp'],
+  arrangement: ['arrangement_id', 'product_category', 'balance', 'status', 'source_system', 'integration_timestamp'],
+};
+
+const ODS_HEADERS = {
+  event:       ['event_id', 'event_type', 'amount', 'currency', 'event_timestamp', 'integrated'],
+  party:       ['party_id', 'party_type', 'first_name', 'last_name', 'source_system', 'integration_timestamp'],
+  arrangement: ['arrangement_id', 'product_category', 'balance', 'status', 'source_system', 'integration_timestamp'],
+};
+
+function toggleOdsPanel() {
+  _odsPanelOpen = !_odsPanelOpen;
+  const panel = document.getElementById('ods-panel');
+  const hint  = document.getElementById('ods-hint');
+  if (_odsPanelOpen) {
+    panel.style.display = '';
+    hint.textContent = '▲ collapse';
+    fetchOdsRecords();
+    startOdsPoll();
+  } else {
+    panel.style.display = 'none';
+    hint.textContent = '▾ view records';
+    stopOdsPoll();
+  }
+}
+
+function startOdsPoll() {
+  stopOdsPoll();
+  _odsPollId = setInterval(fetchOdsRecords, 2000);
+}
+
+function stopOdsPoll() {
+  if (_odsPollId !== null) {
+    clearInterval(_odsPollId);
+    _odsPollId = null;
+  }
+}
+
+function switchOdsTab(btn) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  _odsTable = btn.dataset.table;
+  document.getElementById('ods-tbody').innerHTML =
+    '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">Loading…</td></tr>';
+  fetchOdsRecords();
+}
+
+async function fetchOdsRecords() {
+  const limit = document.getElementById('panel-limit').value;
+  try {
+    const r    = await fetch(`/ods-records?table=${_odsTable}&limit=${limit}`);
+    const data = await r.json();
+    if (!r.ok) { renderOdsError(data.detail || 'Unknown error'); return; }
+    renderOdsRecords(data);
+  } catch (err) {
+    renderOdsError(err.message);
+  }
+}
+
+function renderOdsError(msg) {
+  const cols = ODS_COLUMNS[_odsTable].length;
+  document.getElementById('ods-tbody').innerHTML =
+    `<tr><td colspan="${cols}" style="text-align:center;color:var(--danger);padding:24px">⚠ ${msg}</td></tr>`;
+}
+
+function _fmtUuid(s)    { return s ? s.slice(0, 8) + '…' : '—'; }
+function _fmtTs(s)      { return s ? s.replace('T', ' ').slice(0, 19) : '—'; }
+function _fmtLatency(n) { return (n === null || n === undefined) ? '—' : `+${parseFloat(n).toFixed(2)}s`; }
+function _fmtAmount(n)  {
+  return (n === null || n === undefined) ? '—'
+    : parseFloat(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderOdsRecords(rows) {
+  const headers = ODS_HEADERS[_odsTable];
+  const cols    = ODS_COLUMNS[_odsTable];
+
+  document.getElementById('ods-thead').innerHTML =
+    '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+
+  if (!rows.length) {
+    document.getElementById('ods-tbody').innerHTML =
+      `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--dim);padding:24px">No records yet</td></tr>`;
+  } else {
+    document.getElementById('ods-tbody').innerHTML = rows.map(row => {
+      const cells = cols.map(col => {
+        const v = row[col];
+        if (col.endsWith('_id'))
+          return `<td style="color:var(--dim);font-size:10px">${_fmtUuid(v)}</td>`;
+        if (col === 'latency_s')
+          return `<td style="color:var(--success)">${_fmtLatency(v)}</td>`;
+        if (col === 'event_amount' || col === 'balance')
+          return `<td style="color:var(--success)">${_fmtAmount(v)}</td>`;
+        if (col === 'event_type' || col === 'party_type' || col === 'product_category')
+          return `<td style="color:var(--primary)">${v || '—'}</td>`;
+        if (col.endsWith('_timestamp'))
+          return `<td style="color:var(--dim);font-size:10px">${_fmtTs(v)}</td>`;
+        return `<td>${v || '—'}</td>`;
+      });
+      return '<tr>' + cells.join('') + '</tr>';
+    }).join('');
+  }
+
+  const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  setText('panel-row-desc', `Showing ${rows.length} most recent records · sorted by integration_timestamp DESC`);
+  setText('panel-updated', `Updated ${now}`);
+}
+
 /* ── Generate transactions ───────────────────────────────── */
 async function generate() {
   const btn    = document.getElementById('gen-btn');
