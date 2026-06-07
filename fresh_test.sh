@@ -107,6 +107,8 @@ case "$EXPERIMENT" in
     ;;
 esac
 
+echo "$EXPERIMENT" > "$SCRIPT_DIR/.experiment"
+
 # ─── 4. Run measurements ──────────────────────────────────────────────────────
 echo "[4/4] Running latency measurement and data generator..."
 

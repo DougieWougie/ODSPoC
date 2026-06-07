@@ -31,7 +31,8 @@ rm -f \
   "$SCRIPT_DIR/config.json" \
   "$SCRIPT_DIR/explain_table.txt" \
   "$SCRIPT_DIR/explain_view.txt" \
-  "$SCRIPT_DIR/mock_data.sql"
+  "$SCRIPT_DIR/mock_data.sql" \
+  "$SCRIPT_DIR/.experiment"
 
 # ─── 4. Python virtual environment ───────────────────────────────────────────
 echo "  [4/4] Removing Python virtual environment..."
