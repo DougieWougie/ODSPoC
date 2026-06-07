@@ -499,6 +499,10 @@
       <div class="node-name">Transformer</div>
       <div class="node-metric" id="m-tfm-status">—</div>
       <div class="node-sub">BCDM Mapping</div>
+      <div class="node-sub" id="m-tfm-count"
+           style="display:none; font-family:'Roboto Mono',monospace; color:var(--primary); font-size:13px; font-weight:700; margin-top:6px;">— / —</div>
+      <div class="node-sub" id="m-tfm-count-label"
+           style="display:none; margin-top:2px;">running / requested</div>
     </div>
 
     <div class="node" id="n-ods">
@@ -883,9 +887,33 @@ function renderData(d) {
   // ── Transformer
   const tfmOk = ods.ok;
   const tfmActive = tfmOk && ods.rate > 0;
-  setBadge('b-tfm', tfmOk ? (tfmActive ? 'ok' : 'warn') : 'err');
-  setActive('n-tfm', tfmActive);
-  setText('m-tfm-status', tfmActive ? 'ACTIVE' : tfmOk ? 'IDLE' : 'OFFLINE');
+  const tfmCountEl = document.getElementById('m-tfm-count');
+  const tfmLabelEl = document.getElementById('m-tfm-count-label');
+
+  if (exp && exp.experiment === 'C') {
+    setBadge('b-tfm', 'warn');
+    setActive('n-tfm', false);
+    setText('m-tfm-status', 'SQL VIEWS');
+    document.getElementById('m-tfm-status').style.color = 'var(--warning)';
+    tfmCountEl.style.display = '';
+    tfmLabelEl.style.display = '';
+    setText('m-tfm-count', '— / —');
+    setText('m-tfm-count-label', 'No stream processor');
+  } else {
+    setBadge('b-tfm', tfmOk ? (tfmActive ? 'ok' : 'warn') : 'err');
+    setActive('n-tfm', tfmActive);
+    setText('m-tfm-status', tfmActive ? 'ACTIVE' : tfmOk ? 'IDLE' : 'OFFLINE');
+    document.getElementById('m-tfm-status').style.color = '';
+    if (exp && exp.experiment) {
+      tfmCountEl.style.display = '';
+      tfmLabelEl.style.display = '';
+      setText('m-tfm-count', `${exp.running} / ${exp.requested}`);
+      setText('m-tfm-count-label', 'running / requested');
+    } else {
+      tfmCountEl.style.display = 'none';
+      tfmLabelEl.style.display = 'none';
+    }
+  }
 
   // ── ODS
   const odsActive = ods.ok && ods.rate > 0;
