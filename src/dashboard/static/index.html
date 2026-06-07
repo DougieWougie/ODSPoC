@@ -208,7 +208,7 @@
 
   /* ── KPIs ─────────────────────────────────────────────── */
   .kpis {
-    display: grid; grid-template-columns: repeat(4,1fr);
+    display: grid; grid-template-columns: repeat(5,1fr);
     gap: 20px; padding: 12px 48px 28px;
   }
 
@@ -229,9 +229,10 @@
   }
 
   .kpi:nth-child(1) { --accent: var(--warning); }
-  .kpi:nth-child(2) { --accent: var(--primary); }
-  .kpi:nth-child(3) { --accent: var(--success); }
-  .kpi:nth-child(4) { --accent: var(--dim); }
+  .kpi:nth-child(2) { --accent: var(--dim); }
+  .kpi:nth-child(3) { --accent: var(--danger); }
+  .kpi:nth-child(4) { --accent: var(--success); }
+  .kpi:nth-child(5) { --accent: var(--dim); }
 
   .kpi-value {
     font-family: 'Roboto Mono', monospace;
@@ -277,6 +278,18 @@
   .chart-stat span { color: var(--dim); font-size: 11px; }
 
   #lat-chart { height: 110px !important; }
+
+  /* ── Pipeline metrics strip ──────────────────────────── */
+  .pipeline-metrics {
+    margin: 0 48px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
 
   /* ── Actions ─────────────────────────────────────────── */
   .actions {
@@ -519,12 +532,16 @@
 <!-- KPIs -->
 <div class="kpis">
   <div class="kpi">
+    <div class="kpi-value" id="kpi-p99">—</div>
+    <div class="kpi-label">P99 Latency</div>
+  </div>
+  <div class="kpi">
     <div class="kpi-value" id="kpi-inflight">—</div>
     <div class="kpi-label">In-Flight Records</div>
   </div>
   <div class="kpi">
-    <div class="kpi-value" id="kpi-latency">—</div>
-    <div class="kpi-label">Avg End-to-End Latency</div>
+    <div class="kpi-value" id="kpi-lost">—</div>
+    <div class="kpi-label">Potentially Lost</div>
   </div>
   <div class="kpi">
     <div class="kpi-value" id="kpi-rate">—</div>
@@ -541,12 +558,24 @@
   <div class="chart-header">
     <div class="chart-title">End-to-End Latency Trend (seconds)</div>
     <div class="chart-stats">
-      <div class="chart-stat" id="cs-min" style="color:var(--success)">—<span> min</span></div>
-      <div class="chart-stat" id="cs-avg" style="color:var(--primary)">—<span> avg</span></div>
-      <div class="chart-stat" id="cs-max" style="color:var(--warning)">—<span> max</span></div>
+      <div class="chart-stat" id="cs-avg"    style="color:var(--dim)">—<span> avg</span></div>
+      <div class="chart-stat" id="cs-p50"    style="color:var(--primary)">—<span> p50</span></div>
+      <div class="chart-stat" id="cs-p95"    style="color:var(--warning)">—<span> p95</span></div>
+      <div class="chart-stat" id="cs-p99"    style="color:var(--danger)">—<span> p99</span></div>
+      <div class="chart-stat" id="cs-stddev" style="color:var(--dim)">—<span> σ</span></div>
     </div>
   </div>
   <canvas id="lat-chart"></canvas>
+</div>
+
+<!-- Customer Pipeline -->
+<div class="pipeline-metrics">
+  <div class="chart-title">Customer Pipeline <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">bcdm.party</span></div>
+  <div class="chart-stats">
+    <div class="chart-stat" id="cp-p99"       style="color:var(--warning)">—<span> p99</span></div>
+    <div class="chart-stat" id="cp-inflight"  style="color:var(--dim)">—<span> in-flight</span></div>
+    <div class="chart-stat" id="cp-lost"      style="color:var(--danger)">—<span> potentially lost</span></div>
+  </div>
 </div>
 
 <!-- Actions -->
@@ -939,15 +968,34 @@ function renderData(d) {
   }
 
   // ── KPIs
+  setText('kpi-p99',      fmtLat(latency.p99));
   setText('kpi-inflight', fmt(latency.in_flight));
-  setText('kpi-latency',  fmtLat(latency.avg));
+  const lostEl = document.getElementById('kpi-lost');
+  if (lostEl) {
+    lostEl.textContent = latency.potentially_lost > 0 ? fmt(latency.potentially_lost) : '0';
+    lostEl.style.color = latency.potentially_lost > 0 ? 'var(--danger)' : 'var(--success)';
+  }
   setText('kpi-rate',     `${ods.rate ?? '—'}`);
   setText('kpi-total',    fmt(ods.total));
 
   // ── Chart stats
-  setText('cs-min', latency.min ? `${latency.min.toFixed(3)}s` : '—');
-  setText('cs-avg', latency.avg ? `${latency.avg.toFixed(3)}s` : '—');
-  setText('cs-max', latency.max ? `${latency.max.toFixed(3)}s` : '—');
+  setText('cs-avg',    latency.avg    ? `${latency.avg.toFixed(3)}s`    : '—');
+  setText('cs-p50',    latency.p50    ? `${latency.p50.toFixed(3)}s`    : '—');
+  setText('cs-p95',    latency.p95    ? `${latency.p95.toFixed(3)}s`    : '—');
+  setText('cs-p99',    latency.p99    ? `${latency.p99.toFixed(3)}s`    : '—');
+  setText('cs-stddev', latency.stddev ? `${latency.stddev.toFixed(3)}s` : '—');
+
+  // ── Customer pipeline
+  const pty = d.party;
+  if (pty) {
+    setText('cp-p99',      pty.p99 ? fmtLat(pty.p99) : '—');
+    setText('cp-inflight', fmt(pty.in_flight));
+    const cpLostEl = document.getElementById('cp-lost');
+    if (cpLostEl) {
+      cpLostEl.textContent = pty.potentially_lost > 0 ? fmt(pty.potentially_lost) : '0';
+      cpLostEl.style.color = pty.potentially_lost > 0 ? 'var(--danger)' : 'var(--success)';
+    }
+  }
 
   // ── Latency chart
   updateChart(history);

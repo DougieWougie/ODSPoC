@@ -10,6 +10,7 @@ import requests
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+import statistics as _stats
 
 app = FastAPI()
 BASE = Path(__file__).parent
@@ -20,6 +21,13 @@ DEBEZIUM = "http://localhost:8083"
 CURRENCIES = ["GBP", "USD", "EUR", "JPY", "CHF", "AUD", "CAD"]
 
 _latency_history: list[float] = []
+LOST_THRESHOLD_SECS = 30
+
+
+def _percentile(sorted_data: list, p: float) -> float:
+    k = (len(sorted_data) - 1) * p / 100
+    lo, hi = int(k), min(int(k) + 1, len(sorted_data) - 1)
+    return sorted_data[lo] + (sorted_data[hi] - sorted_data[lo]) * (k - lo)
 
 EXPERIMENT_FILE = BASE.parent.parent / ".experiment"
 
@@ -122,6 +130,9 @@ def ods_metrics() -> dict:
 
 
 def latency_metrics() -> dict:
+    _empty = {"avg": 0, "p50": 0, "p95": 0, "p99": 0, "stddev": 0,
+              "min": 0, "max": 0, "in_flight": 0, "potentially_lost": 0}
+    cc = oc = None
     try:
         cc = psycopg2.connect(**CORE)
         oc = psycopg2.connect(**ODS)
@@ -130,32 +141,98 @@ def latency_metrics() -> dict:
 
         c_cur.execute("SELECT txn_id, txn_time FROM payments.transactions ORDER BY txn_id DESC LIMIT 500")
         core_rows = c_cur.fetchall()
+        if not core_rows:
+            return _empty
 
+        core_ids = [r[0] for r in core_rows]
         o_cur.execute(
             "SELECT source_record_id::int, integration_timestamp "
-            "FROM bcdm.event WHERE source_system='CORE_BANKING_PAYMENTS'"
+            "FROM bcdm.event WHERE source_system='CORE_BANKING_PAYMENTS' "
+            "AND source_record_id::int = ANY(%s)",
+            (core_ids,),
         )
         ods_map = {r[0]: r[1] for r in o_cur.fetchall()}
 
-        cc.close(); oc.close()
-
-        lats, missing = [], 0
+        lats, in_flight, potentially_lost = [], 0, 0
+        now = datetime.now()
         for txn_id, txn_time in core_rows:
             if txn_id in ods_map:
                 lats.append((ods_map[txn_id] - txn_time).total_seconds())
             else:
-                missing += 1
+                age = (now - txn_time).total_seconds()
+                if age < LOST_THRESHOLD_SECS:
+                    in_flight += 1
+                else:
+                    potentially_lost += 1
 
         if not lats:
-            return {"avg": 0, "min": 0, "max": 0, "in_flight": missing}
+            return {**_empty, "in_flight": in_flight, "potentially_lost": potentially_lost}
+
+        s = sorted(lats)
         return {
-            "avg": round(sum(lats) / len(lats), 3),
-            "min": round(min(lats), 3),
-            "max": round(max(lats), 3),
-            "in_flight": missing,
+            "avg":             round(sum(lats) / len(lats), 3),
+            "p50":             round(_percentile(s, 50), 3),
+            "p95":             round(_percentile(s, 95), 3),
+            "p99":             round(_percentile(s, 99), 3),
+            "stddev":          round(_stats.stdev(lats) if len(lats) > 1 else 0, 3),
+            "min":             round(s[0], 3),
+            "max":             round(s[-1], 3),
+            "in_flight":       in_flight,
+            "potentially_lost": potentially_lost,
         }
     except Exception as e:
-        return {"avg": 0, "min": 0, "max": 0, "in_flight": 0, "err": str(e)}
+        return {**_empty, "err": str(e)}
+    finally:
+        if cc: cc.close()
+        if oc: oc.close()
+
+
+def party_metrics() -> dict:
+    _empty = {"p99": 0, "in_flight": 0, "potentially_lost": 0}
+    cc = oc = None
+    try:
+        cc = psycopg2.connect(**CORE)
+        oc = psycopg2.connect(**ODS)
+        c_cur = cc.cursor()
+        o_cur = oc.cursor()
+
+        c_cur.execute("SELECT customer_id, created_at FROM client.customers ORDER BY customer_id DESC LIMIT 500")
+        core_rows = c_cur.fetchall()
+        if not core_rows:
+            return _empty
+
+        core_ids = [r[0] for r in core_rows]
+        o_cur.execute(
+            "SELECT source_record_id::int, integration_timestamp "
+            "FROM bcdm.party WHERE source_system='CORE_BANKING_CLIENT' "
+            "AND source_record_id::int = ANY(%s)",
+            (core_ids,),
+        )
+        ods_map = {r[0]: r[1] for r in o_cur.fetchall()}
+
+        lats, in_flight, potentially_lost = [], 0, 0
+        now = datetime.now()
+        for cust_id, created_at in core_rows:
+            if cust_id in ods_map:
+                lats.append((ods_map[cust_id] - created_at).total_seconds())
+            else:
+                age = (now - created_at).total_seconds()
+                if age < LOST_THRESHOLD_SECS:
+                    in_flight += 1
+                else:
+                    potentially_lost += 1
+
+        s = sorted(lats)
+        return {
+            "p99":             round(_percentile(s, 99), 3) if s else 0,
+            "in_flight":       in_flight,
+            "potentially_lost": potentially_lost,
+        }
+    except Exception as e:
+        return {**_empty, "err": str(e)}
+    finally:
+        if cc: cc.close()
+        if oc: oc.close()
 
 
 def experiment_metrics() -> dict:
@@ -192,13 +269,14 @@ def experiment_metrics() -> dict:
 async def event_stream():
     while True:
         loop = asyncio.get_event_loop()
-        src, deb, kfk, ods, lat, exp = await asyncio.gather(
+        src, deb, kfk, ods, lat, exp, pty = await asyncio.gather(
             loop.run_in_executor(None, source_metrics),
             loop.run_in_executor(None, debezium_metrics),
             loop.run_in_executor(None, kafka_metrics),
             loop.run_in_executor(None, ods_metrics),
             loop.run_in_executor(None, latency_metrics),
             loop.run_in_executor(None, experiment_metrics),
+            loop.run_in_executor(None, party_metrics),
         )
 
         if lat["avg"] > 0:
@@ -213,6 +291,7 @@ async def event_stream():
             "kafka": kfk,
             "ods": ods,
             "latency": lat,
+            "party": pty,
             "history": _latency_history[-30:],
             "experiment": exp,
         }
