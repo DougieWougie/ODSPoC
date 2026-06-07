@@ -80,3 +80,80 @@ def test_experiment_metrics_docker_error(tmp_path):
         result = app.experiment_metrics()
     assert result["experiment"] is None
     assert "err" in result
+
+
+from fastapi.testclient import TestClient
+
+
+def test_ods_records_invalid_table():
+    client = TestClient(app.app)
+    resp = client.get("/ods-records?table=injected_table")
+    assert resp.status_code == 400
+    assert "table must be one of" in resp.json()["detail"]
+
+
+def test_ods_records_event():
+    mock_conn = MagicMock()
+    mock_cur = mock_conn.cursor.return_value
+    mock_cur.description = [
+        ("event_id",), ("event_type",), ("event_amount",),
+        ("currency",), ("event_timestamp",), ("latency_s",),
+    ]
+    mock_cur.fetchall.return_value = [
+        ("a3f2b1c9-0000-0000-0000-000000000001", "PAYMENT_TRANSACTION", 100.0, "GBP", None, 0.18),
+    ]
+    with patch("psycopg2.connect", return_value=mock_conn):
+        client = TestClient(app.app)
+        resp = client.get("/ods-records?table=event&limit=1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["event_type"] == "PAYMENT_TRANSACTION"
+    assert data[0]["latency_s"] == 0.18
+    assert data[0]["currency"] == "GBP"
+
+
+def test_ods_records_party():
+    mock_conn = MagicMock()
+    mock_cur = mock_conn.cursor.return_value
+    mock_cur.description = [
+        ("party_id",), ("party_type",), ("first_name",),
+        ("last_name",), ("source_system",), ("integration_timestamp",),
+    ]
+    mock_cur.fetchall.return_value = [
+        ("pid-1234", "INDIVIDUAL", "Alice", "Smith", "CORE_BANKING_CLIENT", None),
+    ]
+    with patch("psycopg2.connect", return_value=mock_conn):
+        client = TestClient(app.app)
+        resp = client.get("/ods-records?table=party&limit=1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["first_name"] == "Alice"
+    assert data[0]["party_type"] == "INDIVIDUAL"
+
+
+def test_ods_records_arrangement():
+    mock_conn = MagicMock()
+    mock_cur = mock_conn.cursor.return_value
+    mock_cur.description = [
+        ("arrangement_id",), ("product_category",), ("balance",),
+        ("status",), ("source_system",), ("integration_timestamp",),
+    ]
+    mock_cur.fetchall.return_value = [
+        ("aid-9999", "CHECKING_ACCOUNT", 5000.0, "ACTIVE", "CORE_BANKING", None),
+    ]
+    with patch("psycopg2.connect", return_value=mock_conn):
+        client = TestClient(app.app)
+        resp = client.get("/ods-records?table=arrangement&limit=1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["product_category"] == "CHECKING_ACCOUNT"
+    assert data[0]["balance"] == 5000.0
+
+
+def test_ods_records_db_error():
+    with patch("psycopg2.connect", side_effect=Exception("connection refused")):
+        client = TestClient(app.app)
+        resp = client.get("/ods-records?table=event")
+    assert resp.status_code == 500
+    assert "connection refused" in resp.json()["detail"]

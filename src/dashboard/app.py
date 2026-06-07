@@ -7,7 +7,7 @@ from pathlib import Path
 
 import psycopg2
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import statistics as _stats
@@ -47,6 +47,22 @@ EXPERIMENT_META = {
         "detail": "SQL views, no stream processors",
         "requested": 0,
     },
+}
+
+ALLOWED_TABLES = {
+    "event": (
+        "SELECT event_id::text, event_type, event_amount, currency, event_timestamp, "
+        "EXTRACT(EPOCH FROM (integration_timestamp - event_timestamp)) AS latency_s "
+        "FROM bcdm.event ORDER BY integration_timestamp DESC LIMIT %s"
+    ),
+    "party": (
+        "SELECT party_id::text, party_type, first_name, last_name, source_system, integration_timestamp "
+        "FROM bcdm.party ORDER BY integration_timestamp DESC LIMIT %s"
+    ),
+    "arrangement": (
+        "SELECT arrangement_id::text, product_category, balance, status, source_system, integration_timestamp "
+        "FROM bcdm.arrangement ORDER BY integration_timestamp DESC LIMIT %s"
+    ),
 }
 
 
@@ -235,6 +251,22 @@ def party_metrics() -> dict:
         if oc: oc.close()
 
 
+def ods_records_query(table: str, limit: int) -> list[dict]:
+    conn = psycopg2.connect(**ODS)
+    cur = conn.cursor()
+    cur.execute(ALLOWED_TABLES[table], (limit,))
+    cols = [d[0] for d in cur.description]
+    rows = []
+    for row in cur.fetchall():
+        d = {}
+        for k, v in zip(cols, row):
+            d[k] = v.isoformat() if hasattr(v, 'isoformat') else v
+        rows.append(d)
+    cur.close()
+    conn.close()
+    return rows
+
+
 def experiment_metrics() -> dict:
     try:
         if not EXPERIMENT_FILE.exists():
@@ -330,6 +362,22 @@ async def generate(count: int = 50):
 
     await asyncio.get_event_loop().run_in_executor(None, _insert)
     return {"inserted": count}
+
+
+@app.get("/ods-records")
+async def ods_records(table: str = "event", limit: int = 25):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"table must be one of {list(ALLOWED_TABLES)}",
+        )
+    try:
+        rows = await asyncio.get_event_loop().run_in_executor(
+            None, ods_records_query, table, limit
+        )
+        return rows
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/")
