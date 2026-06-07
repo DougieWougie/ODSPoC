@@ -192,12 +192,13 @@ def experiment_metrics() -> dict:
 async def event_stream():
     while True:
         loop = asyncio.get_event_loop()
-        src, deb, kfk, ods, lat = await asyncio.gather(
+        src, deb, kfk, ods, lat, exp = await asyncio.gather(
             loop.run_in_executor(None, source_metrics),
             loop.run_in_executor(None, debezium_metrics),
             loop.run_in_executor(None, kafka_metrics),
             loop.run_in_executor(None, ods_metrics),
             loop.run_in_executor(None, latency_metrics),
+            loop.run_in_executor(None, experiment_metrics),
         )
 
         if lat["avg"] > 0:
@@ -213,6 +214,7 @@ async def event_stream():
             "ods": ods,
             "latency": lat,
             "history": _latency_history[-30:],
+            "experiment": exp,
         }
         yield f"data: {json.dumps(payload)}\n\n"
         await asyncio.sleep(2)
