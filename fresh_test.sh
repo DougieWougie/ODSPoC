@@ -82,11 +82,28 @@ done
 
 # ─── 3. (Databases already initialised by Docker entrypoint) ─────────────────
 
-# ─── 3. Register Debezium connector and configure experiment ──────────────────
+# ─── 3. Pre-create topics, register Debezium, configure experiment ───────────
 echo "[3/4] Registering Debezium connector..."
 until curl -sf http://localhost:8083/connectors > /dev/null; do
   echo "      Waiting for Debezium..."; sleep 3;
 done
+
+# Pre-create the transactions topic with the partition count for this experiment.
+# Debezium creates topics lazily (only on first WAL event), so on empty tables
+# the topic would never appear before the generator runs. Pre-creating it lets
+# Debezium adopt the existing topic with the correct partition layout.
+case "$EXPERIMENT" in
+  B) PARTITIONS=10 ;;
+  *) PARTITIONS=1  ;;
+esac
+echo "      Pre-creating src.payments.transactions with $PARTITIONS partition(s)..."
+$DC exec -T kafka \
+  kafka-topics --bootstrap-server kafka:29092 \
+  --create --if-not-exists \
+  --topic src.payments.transactions \
+  --partitions $PARTITIONS \
+  --replication-factor 1
+
 curl -sf -X POST -H "Content-Type: application/json" \
   -d @"$INFRA_DIR/connectors/register-postgres-source.json" http://localhost:8083/connectors \
   | jq .
@@ -97,9 +114,6 @@ case "$EXPERIMENT" in
     $DC up --scale transformer=1 -d
     ;;
   B)
-    $DC exec -T kafka \
-      kafka-topics --bootstrap-server kafka:29092 \
-      --alter --topic src.payments.transactions --partitions 10 2>/dev/null || true
     $DC up --scale transformer=10 -d
     ;;
   C)
