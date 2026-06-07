@@ -385,6 +385,54 @@
 
   [data-theme="light"] .theme-toggle-icon.moon { opacity: 0.45; }
   [data-theme="light"] .theme-toggle-icon.sun  { opacity: 1; }
+
+  /* ── Experiment banner ───────────────────────────────── */
+  #exp-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 48px;
+    background: rgba(0,212,255,0.06);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.35s, border-color 0.35s;
+  }
+
+  [data-theme="light"] #exp-banner {
+    background: rgba(0,100,200,0.05);
+  }
+
+  .exp-active-label {
+    font-size: 9px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+
+  .exp-chip {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(0,212,255,0.12);
+    padding: 3px 9px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  [data-theme="light"] .exp-chip {
+    background: rgba(0,100,200,0.1);
+  }
+
+  .exp-desc {
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .exp-desc strong {
+    color: var(--text);
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -408,6 +456,13 @@
     <div class="clock" id="clock">--:--:--</div>
   </div>
 </header>
+
+<!-- Experiment banner -->
+<div id="exp-banner">
+  <span class="exp-active-label">Active</span>
+  <span class="exp-chip" id="exp-chip">—</span>
+  <span class="exp-desc" id="exp-desc">—</span>
+</div>
 
 <!-- Pipeline -->
 <div class="pipeline-section" id="pipeline-section">
@@ -801,6 +856,7 @@ es.onerror = () => {
 
 function renderData(d) {
   const { source, debezium, kafka, ods, latency, history } = d;
+  const exp = d.experiment;
 
   // ── Source DB
   const srcActive = source.ok && source.rate > 0;
@@ -843,6 +899,16 @@ function renderData(d) {
   segRates[1] = debOk ? segRates[0] : 0;                              // debezium → kafka
   segRates[2] = kafkaOk ? Math.max(kafkaLag / 20, ods.rate) : 0;     // kafka → transformer
   segRates[3] = ods.ok ? ods.rate : 0;                                // transformer → ods
+
+  // ── Experiment banner
+  if (exp && exp.experiment) {
+    document.getElementById('exp-banner').style.display = 'flex';
+    setText('exp-chip', `EXP ${exp.experiment}`);
+    document.getElementById('exp-desc').innerHTML =
+      `<strong>${exp.name}</strong> — ${exp.detail}`;
+  } else {
+    document.getElementById('exp-banner').style.display = 'none';
+  }
 
   // ── KPIs
   setText('kpi-inflight', fmt(latency.in_flight));
