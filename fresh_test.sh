@@ -102,7 +102,7 @@ $DC exec -T kafka \
   --create --if-not-exists \
   --topic src.payments.transactions \
   --partitions $PARTITIONS \
-  --replication-factor 1
+  --replication-factor 1 2>/dev/null || true
 
 curl -sf -X POST -H "Content-Type: application/json" \
   -d @"$INFRA_DIR/connectors/register-postgres-source.json" http://localhost:8083/connectors \

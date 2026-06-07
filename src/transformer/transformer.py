@@ -2,11 +2,12 @@ import json
 import logging
 import uuid
 import psycopg2
+import psycopg2.extras
 import time
 from confluent_kafka import Consumer, KafkaError
 
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure basic logging, set to WARNING to reduce I/O overhead from per-message logging
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Connect to the ODS database
@@ -20,8 +21,8 @@ def get_db_connection():
                 password="password",
                 dbname="ods"
             )
-            conn.autocommit = True
-            logger.info("Connected to ODS Database.")
+            conn.autocommit = False # Disabled for batch processing
+            logger.warning("Connected to ODS Database.") # Keep as warning so we see it
             return conn
         except psycopg2.OperationalError:
             logger.warning("Waiting for ODS DB to become available...")
@@ -30,70 +31,85 @@ def get_db_connection():
 ods_conn = get_db_connection()
 cursor = ods_conn.cursor()
 
-def process_client_customer(after_payload):
-    """ Maps a source client.customers record to the BCDM Party entity """
-    party_id = str(uuid.uuid4())
-    cursor.execute("""
-        INSERT INTO bcdm.party (party_id, party_type, first_name, last_name, source_system, source_record_id)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (
-        party_id,
-        'INDIVIDUAL',
-        after_payload.get('first_name'),
-        after_payload.get('last_name'),
-        'CORE_BANKING_CLIENT',
-        str(after_payload.get('customer_id'))
-    ))
-    logger.info(f"🔄 Transformed Customer {after_payload.get('customer_id')} -> BCDM Party (ID: {party_id})")
+def process_batch(messages):
+    client_customers = []
+    payments_transactions = []
+    
+    for msg in messages:
+        if msg is None or msg.error():
+            continue
+            
+        try:
+            val_str = msg.value().decode('utf-8')
+            val = json.loads(val_str)
+            
+            payload = val.get('payload')
+            if not payload:
+                continue
+                
+            op = payload.get('op')
+            # We only care about creates ('c') and updates ('u') for this demo, ignoring deletes ('d')
+            if op not in ('c', 'u', 'r'): # 'r' is for snapshot reads
+                continue
+                
+            after = payload.get('after')
+            if not after:
+                continue
+                
+            topic = msg.topic()
+            
+            # Route to appropriate transformation list
+            if topic == "src.client.customers":
+                client_customers.append((
+                    str(uuid.uuid4()),
+                    'INDIVIDUAL',
+                    after.get('first_name'),
+                    after.get('last_name'),
+                    'CORE_BANKING_CLIENT',
+                    str(after.get('customer_id'))
+                ))
+            elif topic == "src.payments.transactions":
+                payments_transactions.append((
+                    str(uuid.uuid4()),
+                    'PAYMENT_TRANSACTION',
+                    after.get('amount'),
+                    after.get('currency'),
+                    'CORE_BANKING_PAYMENTS',
+                    str(after.get('txn_id'))
+                ))
+            else:
+                pass
+                
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
 
-def process_payments_transaction(after_payload):
-    """ Maps a source payments.transactions record to the BCDM Event entity """
-    event_id = str(uuid.uuid4())
-    cursor.execute("""
-        INSERT INTO bcdm.event (event_id, event_type, event_amount, currency, source_system, source_record_id)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (
-        event_id,
-        'PAYMENT_TRANSACTION',
-        after_payload.get('amount'),
-        after_payload.get('currency'),
-        'CORE_BANKING_PAYMENTS',
-        str(after_payload.get('txn_id'))
-    ))
-    logger.info(f"🔄 Transformed Transaction {after_payload.get('txn_id')} -> BCDM Event (ID: {event_id})")
-
-def process_message(msg):
     try:
-        val_str = msg.value().decode('utf-8')
-        val = json.loads(val_str)
+        if client_customers:
+            psycopg2.extras.execute_values(
+                cursor,
+                """
+                INSERT INTO bcdm.party (party_id, party_type, first_name, last_name, source_system, source_record_id)
+                VALUES %s
+                """,
+                client_customers
+            )
         
-        # Debezium payloads are wrapped in a 'payload' object
-        payload = val.get('payload')
-        if not payload:
-            return
+        if payments_transactions:
+            psycopg2.extras.execute_values(
+                cursor,
+                """
+                INSERT INTO bcdm.event (event_id, event_type, event_amount, currency, source_system, source_record_id)
+                VALUES %s
+                """,
+                payments_transactions
+            )
             
-        op = payload.get('op')
-        # We only care about creates ('c') and updates ('u') for this demo, ignoring deletes ('d')
-        if op not in ('c', 'u', 'r'): # 'r' is for snapshot reads
-            return
-            
-        after = payload.get('after')
-        if not after:
-            return
-            
-        topic = msg.topic()
-        
-        # Route to appropriate transformation function
-        if topic == "src.client.customers":
-            process_client_customer(after)
-        elif topic == "src.payments.transactions":
-            process_payments_transaction(after)
-        else:
-            # Placeholder for CRM and Lending domains
-            logger.info(f"Received message on {topic}, transformation not yet mapped.")
+        if client_customers or payments_transactions:
+            ods_conn.commit()
             
     except Exception as e:
-        logger.error(f"Error processing message: {e}")
+        logger.error(f"Error inserting batch: {e}")
+        ods_conn.rollback()
 
 def main():
     consumer = Consumer({
@@ -111,22 +127,16 @@ def main():
     ]
     consumer.subscribe(topics)
 
-    logger.info(f"Starting BCDM Transformer Service... Listening on {topics}")
+    logger.warning(f"Starting BCDM Transformer Service... Listening on {topics}")
 
     try:
         while True:
-            # Poll for new messages every 1 second
-            msg = consumer.poll(1.0)
-            if msg is None:
+            # Consume messages in batches of up to 500
+            messages = consumer.consume(num_messages=500, timeout=1.0)
+            if not messages:
                 continue
-            if msg.error():
-                if msg.error().code() in (KafkaError._PARTITION_EOF, KafkaError.UNKNOWN_TOPIC_OR_PART):
-                    continue
-                else:
-                    logger.error(msg.error())
-                    continue
 
-            process_message(msg)
+            process_batch(messages)
 
     finally:
         consumer.close()

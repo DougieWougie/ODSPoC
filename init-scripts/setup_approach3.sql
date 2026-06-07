@@ -10,12 +10,15 @@ CREATE TABLE IF NOT EXISTS raw.payments_transactions (
     landed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_raw_payments_txn_time ON raw.payments_transactions(txn_time);
+CREATE INDEX IF NOT EXISTS idx_raw_payments_currency ON raw.payments_transactions(currency);
+
 -- Approach 3: Virtualize the transformation using a Database View
 -- Downstream systems query this view exactly as if it were the physical bcdm.event table.
 CREATE OR REPLACE VIEW bcdm.virtual_event AS 
 SELECT 
-    -- Compute the UUID on the fly during the query
-    md5(txn_id::text)::uuid AS event_id, 
+    -- Dropped md5 hashing to improve performance
+    txn_id::text AS event_id, 
     'PAYMENT_TRANSACTION'::VARCHAR(50) AS event_type,
     NULL::uuid AS related_party_id,
     NULL::uuid AS related_arrangement_id,
