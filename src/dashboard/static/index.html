@@ -1192,11 +1192,16 @@ async function fetchOdsRecords() {
 function renderOdsError(msg) {
   const cols = ODS_COLUMNS[_odsTable].length;
   document.getElementById('ods-tbody').innerHTML =
-    `<tr><td colspan="${cols}" style="text-align:center;color:var(--danger);padding:24px">⚠ ${msg}</td></tr>`;
+    `<tr><td colspan="${cols}" style="text-align:center;color:var(--danger);padding:24px">⚠ ${_esc(msg)}</td></tr>`;
 }
 
-function _fmtUuid(s)    { return s ? s.slice(0, 8) + '…' : '—'; }
-function _fmtTs(s)      { return s ? s.replace('T', ' ').slice(0, 19) : '—'; }
+function _esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+function _fmtUuid(s)    { return s ? _esc(s.slice(0, 8)) + '…' : '—'; }
+function _fmtTs(s)      { return s ? _esc(s.replace('T', ' ').slice(0, 19)) : '—'; }
 function _fmtLatency(n) { return (n === null || n === undefined) ? '—' : `+${parseFloat(n).toFixed(2)}s`; }
 function _fmtAmount(n)  {
   return (n === null || n === undefined) ? '—'
@@ -1224,10 +1229,10 @@ function renderOdsRecords(rows) {
         if (col === 'event_amount' || col === 'balance')
           return `<td style="color:var(--success)">${_fmtAmount(v)}</td>`;
         if (col === 'event_type' || col === 'party_type' || col === 'product_category')
-          return `<td style="color:var(--primary)">${v || '—'}</td>`;
+          return `<td style="color:var(--primary)">${_esc(v) || '—'}</td>`;
         if (col.endsWith('_timestamp'))
           return `<td style="color:var(--dim);font-size:10px">${_fmtTs(v)}</td>`;
-        return `<td>${v || '—'}</td>`;
+        return `<td>${_esc(v) || '—'}</td>`;
       });
       return '<tr>' + cells.join('') + '</tr>';
     }).join('');
