@@ -189,18 +189,18 @@ curl -sf -X POST -H "Content-Type: application/json" \
 
 ## Dashboard
 
-The dashboard provides a live view of the full pipeline — Source DB → Debezium → Kafka → Transformer → ODS — with animated data flow, latency trends, and a transaction injection button.
+The dashboard provides a live view of the full pipeline — Source DB → Debezium → Kafka → Transformer → ODS — with animated data flow, latency trends, manual data injection, and continuous load simulation.
 
 > **Infrastructure must be running** before starting the dashboard.
 
 ```bash
 source venv/bin/activate
-uvicorn src.dashboard.app:app --host 0.0.0.0 --port 8000
+python src/dashboard/app.py
 ```
 
 Open **http://localhost:8000** in a browser. The dashboard polls all pipeline stages every 2 seconds via Server-Sent Events and displays live KPIs: in-flight records, end-to-end latency, throughput, and total ODS record count.
 
-To stop: `Ctrl+C` in the terminal running `uvicorn`.
+To stop: `Ctrl+C` in the terminal running the app.
 
 ---
 

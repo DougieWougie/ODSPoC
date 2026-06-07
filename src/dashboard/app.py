@@ -19,7 +19,13 @@ BASE = Path(__file__).parent
 CORE = dict(host="localhost", port=5432, user="admin", password="password", dbname="core_banking")
 ODS  = dict(host="localhost", port=5433, user="admin", password="password", dbname="ods")
 DEBEZIUM = "http://localhost:8083"
-CURRENCIES = ["GBP", "USD", "EUR", "JPY", "CHF", "AUD", "CAD"]
+CURRENCIES   = ["GBP", "USD", "EUR", "JPY", "CHF", "AUD", "CAD"]
+FIRST_NAMES  = ["Alice", "Bob", "Carol", "David", "Eve", "Frank", "Grace", "Henry",
+                "Iris", "Jack", "Karen", "Liam", "Mia", "Noah", "Olivia", "Paul",
+                "Quinn", "Rose", "Sam", "Tara", "Uma", "Victor", "Wendy", "Xander"]
+LAST_NAMES   = ["Smith", "Jones", "Williams", "Taylor", "Brown", "Davies", "Evans",
+                "Wilson", "Thomas", "Roberts", "Johnson", "Walker", "Wright", "Robinson",
+                "Thompson", "White", "Hughes", "Edwards", "Green", "Hall"]
 
 _latency_history: list[float] = []
 LOST_THRESHOLD_SECS = 30
@@ -358,6 +364,11 @@ async def generate(count: int = 50):
                     random.choice(CURRENCIES),
                 ),
             )
+        dob = f"{random.randint(1950, 2000)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}"
+        cur.execute(
+            "INSERT INTO client.customers (first_name, last_name, date_of_birth) VALUES (%s, %s, %s)",
+            (random.choice(FIRST_NAMES), random.choice(LAST_NAMES), dob),
+        )
         conn.commit()
         cur.close(); conn.close()
 
@@ -388,3 +399,7 @@ async def root():
 
 
 app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, timeout_graceful_shutdown=2)
