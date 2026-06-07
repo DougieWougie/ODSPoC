@@ -343,6 +343,54 @@
     border-color: rgba(200,0,180,0.4);
   }
 
+  .sim-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    padding: 12px 20px;
+    font-size: 13px; font-weight: 600; font-family: inherit;
+    letter-spacing: 0.5px;
+    border-radius: 9px; cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .sim-toggle-btn:hover:not(:disabled) { border-color: var(--border-hi); color: var(--primary); }
+  .sim-toggle-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .sim-toggle-btn.active { border-color: var(--border-hi); color: var(--primary); }
+
+  .sim-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 10px; border-radius: 9px;
+    font-size: 14px; font-family: 'Roboto Mono', monospace;
+    width: 72px; text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .sim-input:hover, .sim-input:focus { border-color: var(--border-hi); }
+  .sim-input:disabled { opacity: 0.45; }
+
+  .sim-start-btn {
+    background: linear-gradient(135deg, #00552a, #00a855);
+    border: 1px solid rgba(0,168,85,0.3);
+    color: #fff;
+    padding: 13px 28px;
+    font-size: 13px; font-weight: 700; font-family: inherit;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    border-radius: 9px; cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+  }
+  .sim-start-btn:hover:not(:disabled) {
+    opacity: 0.92; transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,168,85,0.3);
+  }
+  .sim-start-btn:active:not(:disabled) { transform: translateY(0); }
+  .sim-start-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .sim-start-btn.running {
+    background: linear-gradient(135deg, #6b0000, #d42040);
+    border-color: rgba(212,32,64,0.3);
+  }
+
   .action-status {
     font-size: 13px; color: var(--dim);
     transition: color 0.3s;
