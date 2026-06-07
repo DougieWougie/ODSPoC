@@ -2,7 +2,7 @@ import asyncio
 import json
 import random
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import psycopg2
@@ -171,7 +171,7 @@ def latency_metrics() -> dict:
         ods_map = {r[0]: r[1] for r in o_cur.fetchall()}
 
         lats, in_flight, potentially_lost = [], 0, 0
-        now = datetime.now()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for txn_id, txn_time in core_rows:
             if txn_id in ods_map:
                 lats.append((ods_map[txn_id] - txn_time).total_seconds())
@@ -228,7 +228,7 @@ def party_metrics() -> dict:
         ods_map = {r[0]: r[1] for r in o_cur.fetchall()}
 
         lats, in_flight, potentially_lost = [], 0, 0
-        now = datetime.now()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for cust_id, created_at in core_rows:
             if cust_id in ods_map:
                 lats.append((ods_map[cust_id] - created_at).total_seconds())
