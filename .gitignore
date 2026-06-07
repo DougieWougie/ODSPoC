@@ -20,6 +20,7 @@ config.json
 .DS_Store
 *.swp
 *~
+.superpowers/
 
 # Local Database Data (if you decide to mount volumes later)
 pgdata/
