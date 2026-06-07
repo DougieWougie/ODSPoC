@@ -1,7 +1,9 @@
 services:
   # 1. Source Database (Simulating a Core Banking System)
   core-banking-db:
-    image: postgres:15
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.core-banking-db
     container_name: core-banking-db
     environment:
       POSTGRES_USER: admin
@@ -10,8 +12,6 @@ services:
     ports:
       - "5432:5432"
     command: ["postgres", "-c", "wal_level=logical"]
-    volumes:
-      - ../init-scripts/init-source.sql:/docker-entrypoint-initdb.d/init-source.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d core_banking"]
       interval: 5s
@@ -67,7 +67,9 @@ services:
 
   # 6. ODS Database (The Operational Data Store)
   ods-db:
-    image: postgres:15
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.ods-db
     container_name: ods-db
     environment:
       POSTGRES_USER: admin
@@ -75,9 +77,6 @@ services:
       POSTGRES_DB: ods
     ports:
       - "5433:5432"
-    volumes:
-      - ../init-scripts/init-ods.sql:/docker-entrypoint-initdb.d/01-init-ods.sql
-      - ../init-scripts/setup_approach3.sql:/docker-entrypoint-initdb.d/02-setup_approach3.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d ods"]
       interval: 5s

@@ -80,13 +80,10 @@ for container in core-banking-db ods-db; do
   echo " ready"
 done
 
-# ─── 3. Initialise databases ──────────────────────────────────────────────────
-echo "[3/5] Initialising databases..."
-$DC exec -T core-banking-db psql -U admin -d core_banking < "$SCRIPT_DIR/init-scripts/init-source.sql"
-$DC exec -T ods-db psql -U admin -d ods < "$SCRIPT_DIR/init-scripts/init-ods.sql"
+# ─── 3. (Databases already initialised by Docker entrypoint) ─────────────────
 
-# ─── 4. Register Debezium connector and configure experiment ──────────────────
-echo "[4/5] Registering Debezium connector..."
+# ─── 3. Register Debezium connector and configure experiment ──────────────────
+echo "[3/4] Registering Debezium connector..."
 until curl -sf http://localhost:8083/connectors > /dev/null; do
   echo "      Waiting for Debezium..."; sleep 3;
 done
@@ -94,7 +91,7 @@ curl -sf -X POST -H "Content-Type: application/json" \
   -d @"$INFRA_DIR/connectors/register-postgres-source.json" http://localhost:8083/connectors \
   | jq .
 
-echo "      Configuring for Experiment $EXPERIMENT..."
+echo "      Configuring infrastructure for Experiment $EXPERIMENT..."
 case "$EXPERIMENT" in
   A)
     $DC up --scale transformer=1 -d
@@ -107,12 +104,11 @@ case "$EXPERIMENT" in
     ;;
   C)
     $DC up --scale transformer=0 -d
-    $DC exec -T ods-db psql -U admin -d ods < "$SCRIPT_DIR/init-scripts/setup_approach3.sql"
     ;;
 esac
 
-# ─── 5. Run measurements ──────────────────────────────────────────────────────
-echo "[5/5] Running latency measurement and data generator..."
+# ─── 4. Run measurements ──────────────────────────────────────────────────────
+echo "[4/4] Running latency measurement and data generator..."
 
 pkill -f "measure_latency.py" 2>/dev/null || true
 pkill -f "raw_sink.py"        2>/dev/null || true

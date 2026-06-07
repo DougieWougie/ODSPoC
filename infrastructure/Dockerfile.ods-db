@@ -1,0 +1,4 @@
+FROM postgres:15
+
+COPY --chown=postgres:postgres ../init-scripts/init-ods.sql /docker-entrypoint-initdb.d/01-init-ods.sql
+COPY --chown=postgres:postgres ../init-scripts/setup_approach3.sql /docker-entrypoint-initdb.d/02-setup_approach3.sql
