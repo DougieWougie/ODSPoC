@@ -759,6 +759,20 @@
   </select>
   <button id="gen-btn" onclick="generate()">⚡ Inject Now</button>
   <div class="action-status" id="action-status"></div>
+  <button id="sim-toggle-btn" class="sim-toggle-btn" onclick="toggleSimControls()">▸ Simulate</button>
+
+  <div id="sim-controls" style="display:none; flex-basis:100%; width:100%; align-items:center; gap:16px; padding-top:4px; flex-wrap:wrap;">
+    <span class="action-label">Batch</span>
+    <input type="number" id="sim-min-txn" class="sim-input" value="1"    min="1"   title="Min transactions per injection">
+    <span style="color:var(--dim);font-size:13px">→</span>
+    <input type="number" id="sim-max-txn" class="sim-input" value="20"   min="1"   title="Max transactions per injection">
+    <span class="action-label" style="margin-left:8px">Interval (ms)</span>
+    <input type="number" id="sim-min-ms"  class="sim-input" value="500"  min="100" title="Min ms between injections">
+    <span style="color:var(--dim);font-size:13px">→</span>
+    <input type="number" id="sim-max-ms"  class="sim-input" value="3000" min="100" title="Max ms between injections">
+    <button id="sim-btn" class="sim-start-btn" onclick="toggleSim()">▶ Start Simulation</button>
+    <div class="action-status" id="sim-status"></div>
+  </div>
 </div>
 
 <!-- Footer -->
