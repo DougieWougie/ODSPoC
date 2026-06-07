@@ -33,18 +33,6 @@ cd src/transformer && python -m pytest test_transformer.py -v
 
 The test file mocks both `psycopg2` and `confluent_kafka` at the module level before importing `transformer.py`, because `transformer.py` opens DB connections at import time.
 
-## Running the interface
-
-The FastAPI web interface exposes experiment controls and a real-time latency dashboard over WebSocket:
-
-```bash
-./venv/bin/python src/interface/main.py
-# or
-uvicorn src.interface.main:app --host 0.0.0.0 --port 8085
-```
-
-It connects to `core-banking-db` on `localhost:5432` and `ods-db` on `localhost:5433`, so Docker services must be running.
-
 ## Generating synthetic load
 
 ```bash
@@ -83,7 +71,7 @@ ods-db (Postgres, :5433) — schema: bcdm
 | ods-db          | 5433 |
 | Kafka           | 9092 |
 | Debezium REST   | 8083 |
-| Interface API   | 8085 |
+
 
 ## Python environment
 

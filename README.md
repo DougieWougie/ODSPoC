@@ -29,7 +29,7 @@ ods-db (Postgres, :5433) — schema: bcdm
 | ods-db          | 5433 |
 | Kafka           | 9092 |
 | Debezium REST   | 8083 |
-| Interface API   | 8085 |
+
 
 ---
 
@@ -195,10 +195,10 @@ The dashboard provides a live view of the full pipeline — Source DB → Debezi
 
 ```bash
 source venv/bin/activate
-uvicorn src.interface.main:app --host 0.0.0.0 --port 8085
+uvicorn src.dashboard.app:app --host 0.0.0.0 --port 8000
 ```
 
-Open **http://localhost:8085** in a browser. The dashboard polls all pipeline stages every 2 seconds via Server-Sent Events and displays live KPIs: in-flight records, end-to-end latency, throughput, and total ODS record count.
+Open **http://localhost:8000** in a browser. The dashboard polls all pipeline stages every 2 seconds via Server-Sent Events and displays live KPIs: in-flight records, end-to-end latency, throughput, and total ODS record count.
 
 To stop: `Ctrl+C` in the terminal running `uvicorn`.
 

@@ -20,6 +20,28 @@
     --danger:    #ff3355;
     --text:      #e8f4f8;
     --dim:       #6b8fa8;
+    --header-bg: rgba(5,13,26,0.85);
+    --grid-line: rgba(0,212,255,0.025);
+    --grid-glow: rgba(0,212,255,0.07);
+    --particle:  0,212,255;
+  }
+
+  [data-theme="light"] {
+    --bg:        #eef4fb;
+    --surface:   rgba(0,80,160,0.05);
+    --surface-2: rgba(0,80,160,0.09);
+    --border:    rgba(0,100,200,0.15);
+    --border-hi: rgba(0,100,200,0.4);
+    --primary:   #0072b8;
+    --success:   #00a855;
+    --warning:   #c97a00;
+    --danger:    #d42040;
+    --text:      #0c1e32;
+    --dim:       #5a7a98;
+    --header-bg: rgba(238,244,251,0.90);
+    --grid-line: rgba(0,100,200,0.06);
+    --grid-glow: rgba(0,100,200,0.05);
+    --particle:  0,114,184;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,10 +49,11 @@
   body {
     background-color: var(--bg);
     background-image:
-      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,212,255,0.07) 0%, transparent 100%),
-      linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+      radial-gradient(ellipse 80% 40% at 50% -10%, var(--grid-glow) 0%, transparent 100%),
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 100% 100%, 60px 60px, 60px 60px;
+    transition: background-color 0.35s, color 0.35s;
     color: var(--text);
     font-family: 'Inter', -apple-system, sans-serif;
     min-height: 100vh;
@@ -46,7 +69,8 @@
     justify-content: space-between;
     padding: 18px 48px;
     border-bottom: 1px solid var(--border);
-    background: rgba(5,13,26,0.85);
+    background: var(--header-bg);
+    transition: background 0.35s;
     backdrop-filter: blur(12px);
     position: sticky; top: 0; z-index: 100;
   }
@@ -319,6 +343,48 @@
     display: flex; justify-content: space-between; align-items: center;
     font-size: 11px; color: var(--dim);
   }
+
+  /* ── Theme toggle ────────────────────────────────────── */
+  .theme-toggle {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; background: none; border: none;
+    padding: 0; outline: none;
+  }
+
+  .theme-toggle-track {
+    width: 46px; height: 24px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    position: relative;
+    transition: background 0.3s, border-color 0.3s;
+  }
+
+  .theme-toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 60%, transparent);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), background 0.3s, box-shadow 0.3s;
+  }
+
+  [data-theme="light"] .theme-toggle-thumb {
+    transform: translateX(22px);
+  }
+
+  .theme-toggle-icon {
+    font-size: 14px; line-height: 1;
+    transition: opacity 0.3s;
+    user-select: none;
+  }
+
+  .theme-toggle-icon.moon { opacity: 1; }
+  .theme-toggle-icon.sun  { opacity: 0.45; }
+
+  [data-theme="light"] .theme-toggle-icon.moon { opacity: 0.45; }
+  [data-theme="light"] .theme-toggle-icon.sun  { opacity: 1; }
 </style>
 </head>
 <body>
@@ -333,6 +399,11 @@
     </div>
   </div>
   <div class="header-right">
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" onclick="toggleTheme()">
+      <span class="theme-toggle-icon moon">🌙</span>
+      <div class="theme-toggle-track"><div class="theme-toggle-thumb"></div></div>
+      <span class="theme-toggle-icon sun">☀️</span>
+    </button>
     <div class="live-badge"><div class="live-dot"></div>Live</div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
@@ -439,6 +510,46 @@
 </footer>
 
 <script>
+/* ── Theme ──────────────────────────────────────────────── */
+(function initTheme() {
+  const saved = localStorage.getItem('ods-theme');
+  if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if (isLight) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('ods-theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('ods-theme', 'light');
+  }
+  updateChartTheme();
+}
+
+function getThemeColor(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+function updateChartTheme() {
+  if (!latChart) return;
+  const primary = getThemeColor('--primary');
+  const dim     = getThemeColor('--dim');
+  const grid    = getThemeColor('--border');
+  latChart.data.datasets[0].borderColor         = primary;
+  latChart.data.datasets[0].pointBackgroundColor = primary;
+  latChart.options.scales.y.border.color         = grid;
+  latChart.options.scales.y.grid.color           = grid + '55';
+  latChart.options.scales.y.ticks.color          = dim;
+  latChart.options.plugins.tooltip.backgroundColor =
+    document.documentElement.getAttribute('data-theme') === 'light'
+      ? 'rgba(238,244,251,0.96)' : 'rgba(5,13,26,0.92)';
+  latChart.options.plugins.tooltip.titleColor = dim;
+  latChart.options.plugins.tooltip.bodyColor  = primary;
+  latChart.update();
+}
+
 /* ── Clock ──────────────────────────────────────────────── */
 function tickClock() {
   document.getElementById('clock').textContent =
@@ -474,16 +585,21 @@ function nodeCenter(id) {
   };
 }
 
+function getParticleRgb() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--particle').trim() || '0,212,255';
+}
+
 function drawConnector(i, active) {
   const from = nodeCenter(nodeIds[i]);
   const to   = nodeCenter(nodeIds[i + 1]);
+  const rgb  = getParticleRgb();
 
   // Glow line
   const grad = ctx.createLinearGradient(from.rx, from.y, to.lx, to.y);
   const alpha = active ? 0.45 : 0.14;
-  grad.addColorStop(0,   `rgba(0,212,255,${alpha})`);
-  grad.addColorStop(0.5, `rgba(0,212,255,${alpha * 1.4})`);
-  grad.addColorStop(1,   `rgba(0,212,255,${alpha})`);
+  grad.addColorStop(0,   `rgba(${rgb},${alpha})`);
+  grad.addColorStop(0.5, `rgba(${rgb},${alpha * 1.4})`);
+  grad.addColorStop(1,   `rgba(${rgb},${alpha})`);
 
   ctx.beginPath();
   ctx.moveTo(from.rx, from.y);
@@ -500,7 +616,7 @@ function drawConnector(i, active) {
   ctx.lineTo(to.lx - al * Math.cos(angle - 0.38), to.y - al * Math.sin(angle - 0.38));
   ctx.moveTo(to.lx, to.y);
   ctx.lineTo(to.lx - al * Math.cos(angle + 0.38), to.y - al * Math.sin(angle + 0.38));
-  ctx.strokeStyle = active ? 'rgba(0,212,255,0.65)' : 'rgba(107,143,168,0.25)';
+  ctx.strokeStyle = active ? `rgba(${rgb},0.65)` : 'rgba(107,143,168,0.25)';
   ctx.lineWidth   = active ? 2 : 1.5;
   ctx.stroke();
 }
@@ -534,20 +650,21 @@ function drawParticle(p) {
   const x       = p.x1 + (p.x2 - p.x1) * p.t;
   const y       = p.y1 + (p.y2 - p.y1) * p.t;
   const opacity = p.t < 0.1 ? p.t * 10 : p.t > 0.88 ? (1 - p.t) / 0.12 : 1;
+  const rgb     = getParticleRgb();
 
   // Trail
   const tx = x - (p.x2 - p.x1) * p.speed * 3;
   const ty = y - (p.y2 - p.y1) * p.speed * 3;
   ctx.beginPath();
   ctx.arc(tx, ty, p.size * 0.55, 0, Math.PI * 2);
-  ctx.fillStyle = `rgba(0,180,210,${opacity * 0.3})`;
+  ctx.fillStyle = `rgba(${rgb},${opacity * 0.3})`;
   ctx.fill();
 
   // Core dot
   ctx.beginPath();
   ctx.arc(x, y, p.size, 0, Math.PI * 2);
-  ctx.fillStyle = `rgba(0,212,255,${opacity * 0.9})`;
-  ctx.shadowColor = '#00d4ff';
+  ctx.fillStyle = `rgba(${rgb},${opacity * 0.9})`;
+  ctx.shadowColor = `rgb(${rgb})`;
   ctx.shadowBlur  = 14;
   ctx.fill();
   ctx.shadowBlur  = 0;
@@ -592,18 +709,19 @@ let latChart;
       datasets: [{
         label: 'Latency (s)',
         data:  [],
-        borderColor: '#00d4ff',
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#00d4ff',
         backgroundColor(ctx) {
           const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 100);
-          g.addColorStop(0, 'rgba(0,212,255,0.28)');
-          g.addColorStop(1, 'rgba(0,212,255,0)');
+          const rgb = getParticleRgb();
+          g.addColorStop(0, `rgba(${rgb},0.28)`);
+          g.addColorStop(1, `rgba(${rgb},0)`);
           return g;
         },
         borderWidth: 2,
         fill: true,
         tension: 0.45,
         pointRadius: 2.5,
-        pointBackgroundColor: '#00d4ff',
+        pointBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#00d4ff',
         pointBorderWidth: 0,
       }]
     },
@@ -630,6 +748,7 @@ let latChart;
       }
     }
   });
+  updateChartTheme();
 })();
 
 function updateChart(history) {
