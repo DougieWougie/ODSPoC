@@ -7,7 +7,8 @@ from pathlib import Path
 
 import psycopg2
 import requests
-from fastapi import FastAPI, HTTPException
+import logging
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import statistics as _stats
@@ -365,7 +366,7 @@ async def generate(count: int = 50):
 
 
 @app.get("/ods-records")
-async def ods_records(table: str = "event", limit: int = 25):
+async def ods_records(table: str = "event", limit: int = Query(25, ge=1, le=100)):
     if table not in ALLOWED_TABLES:
         raise HTTPException(
             status_code=400,
@@ -377,7 +378,8 @@ async def ods_records(table: str = "event", limit: int = 25):
         )
         return rows
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception("ods_records query failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @app.get("/")

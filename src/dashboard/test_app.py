@@ -156,4 +156,4 @@ def test_ods_records_db_error():
         client = TestClient(app.app)
         resp = client.get("/ods-records?table=event")
     assert resp.status_code == 500
-    assert "connection refused" in resp.json()["detail"]
+    assert resp.json()["detail"] == "internal error"
