@@ -348,6 +348,96 @@
     transition: color 0.3s;
   }
 
+  /* ── ODS Records Panel ──────────────────────────────────── */
+  .ods-panel {
+    margin: 0 48px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,212,255,0.07);
+  }
+
+  .ods-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,212,255,0.04);
+  }
+
+  .panel-tabs { display: flex; gap: 6px; }
+
+  .panel-tab {
+    padding: 5px 14px; border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+    cursor: pointer; border: 1px solid transparent;
+    background: none; color: var(--dim);
+    transition: all 0.2s;
+  }
+
+  .panel-tab.active {
+    background: rgba(0,212,255,0.15);
+    border-color: rgba(0,212,255,0.3);
+    color: var(--primary);
+  }
+
+  .panel-controls { display: flex; align-items: center; gap: 16px; }
+
+  .panel-limit-sel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px; border-radius: 6px;
+    font-size: 12px; font-family: 'Roboto Mono', monospace;
+    cursor: pointer; outline: none;
+  }
+  .panel-limit-sel:hover { border-color: var(--border-hi); }
+
+  .panel-collapse-btn {
+    font-size: 11px; color: var(--dim); cursor: pointer;
+    background: none; border: none; padding: 4px 8px; font-family: inherit;
+  }
+  .panel-collapse-btn:hover { color: var(--primary); }
+
+  .records-table { width: 100%; border-collapse: collapse; }
+
+  .records-table th {
+    text-align: left; padding: 10px 16px;
+    font-size: 10px; font-weight: 600; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.15);
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .records-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid rgba(0,212,255,0.05);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px; color: var(--text);
+  }
+
+  .records-table tr:last-child td { border-bottom: none; }
+  .records-table tr:hover td { background: rgba(0,212,255,0.03); }
+
+  .ods-panel-footer {
+    padding: 8px 20px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.1);
+    font-size: 10px; color: var(--dim);
+    display: flex; justify-content: space-between;
+  }
+
+  .node.clickable { cursor: pointer; }
+  .node.clickable:hover { border-color: var(--border-hi); }
+
+  .node-hint {
+    font-size: 9px; color: var(--primary);
+    text-align: center; margin-top: 6px;
+    opacity: 0.7; letter-spacing: 0.5px;
+  }
+
   /* ── Footer ──────────────────────────────────────────── */
   footer {
     margin-top: auto;
@@ -518,14 +608,46 @@
            style="display:none; margin-top:2px;">running / requested</div>
     </div>
 
-    <div class="node" id="n-ods">
+    <div class="node clickable" id="n-ods" onclick="toggleOdsPanel()" title="Click to view ODS records">
       <div class="node-badge" id="b-ods"></div>
       <div class="node-icon">🏛️</div>
       <div class="node-name">ODS</div>
       <div class="node-metric" id="m-ods-total">—</div>
       <div class="node-sub" id="m-ods-rate">— rec/s</div>
+      <div class="node-hint" id="ods-hint">▾ view records</div>
     </div>
 
+  </div>
+</div>
+
+<!-- ODS Records Panel -->
+<div id="ods-panel" class="ods-panel" style="display:none">
+  <div class="ods-panel-header">
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-table="event" onclick="switchOdsTab(this)">bcdm.event</button>
+      <button class="panel-tab" data-table="party" onclick="switchOdsTab(this)">bcdm.party</button>
+      <button class="panel-tab" data-table="arrangement" onclick="switchOdsTab(this)">bcdm.arrangement</button>
+    </div>
+    <div class="panel-controls">
+      <div class="live-badge"><div class="live-dot"></div>live</div>
+      <select class="panel-limit-sel" id="panel-limit" onchange="fetchOdsRecords()">
+        <option value="10">10 rows</option>
+        <option value="25" selected>25 rows</option>
+        <option value="50">50 rows</option>
+        <option value="100">100 rows</option>
+      </select>
+      <button class="panel-collapse-btn" onclick="toggleOdsPanel()">▲ collapse</button>
+    </div>
+  </div>
+  <table class="records-table">
+    <thead id="ods-thead"><tr></tr></thead>
+    <tbody id="ods-tbody">
+      <tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">Loading…</td></tr>
+    </tbody>
+  </table>
+  <div class="ods-panel-footer">
+    <span id="panel-row-desc">—</span>
+    <span id="panel-updated">—</span>
   </div>
 </div>
 
