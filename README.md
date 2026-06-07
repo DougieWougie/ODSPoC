@@ -39,6 +39,9 @@ ods-db (Postgres, :5433) — schema: bcdm
 - Python 3.10+
 - `jq` and `curl`
 
+![Docker](https://shieldcn.dev/badge/Docker-2496ED.svg?logo=docker&logoColor=fff&variant=branded)
+![Python](https://shieldcn.dev/badge/Python-3776AB.svg?logo=python&logoColor=fff&variant=branded)
+
 ---
 
 ## Setup
