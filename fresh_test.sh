@@ -24,7 +24,7 @@ if [[ $# -gt 1 ]]; then
 fi
 
 if [[ $# -eq 1 ]]; then
-  EXPERIMENT="${1^^}"  # normalise to uppercase
+  EXPERIMENT="$(echo "$1" | tr '[:lower:]' '[:upper:]')"  # normalise to uppercase
 else
   echo "╔══════════════════════════════════════════════════╗"
   echo "║     ODS Proof of Concept — Experiment Runner     ║"
@@ -40,7 +40,7 @@ else
   echo "╚══════════════════════════════════════════════════╝"
   echo ""
   read -rp "Select experiment [A/B/C]: " EXPERIMENT
-  EXPERIMENT="${EXPERIMENT^^}"
+  EXPERIMENT="$(echo "$EXPERIMENT" | tr '[:lower:]' '[:upper:]')"
 fi
 
 case "$EXPERIMENT" in
